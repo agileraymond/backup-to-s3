@@ -16,7 +16,6 @@ Log.Logger = new LoggerConfiguration()
 
 // read config value with localFolder > aws s3 bucket
 var folderMappings = config.GetValue<string>("FolderMappings");
-var rootDrive = "c:\\";
 var lastModifiedMinutes = config.GetValue<double>("SyncFilesLastModifiedMinutes");
 
 try
@@ -26,11 +25,10 @@ try
 
     foreach (var folderConfig in folderMappings.Split(';'))
     {       
-        var folderArray = folderConfig.Split(':');
-        var folder = Path.Join(rootDrive, folderArray[0]);
+        var folderArray = folderConfig.Split('@');
         var s3Bucket = folderArray[1];
-        var fileEntries = new DirectoryInfo($"{folder}").GetFiles("*", SearchOption.AllDirectories);
-
+        var fileEntries = Directory.GetFiles(folderArray[0], "*", SearchOption.AllDirectories);
+            
         // check bucket
         try
         {
@@ -55,15 +53,22 @@ try
         
         foreach (var file in fileEntries)
         {
-            var key = file.FullName.Replace(rootDrive, "").Replace("\\", "/");
+            var key = file.Replace(file.Substring(0, 3), "").Replace("\\", "/");
+            var fileLength = 0;
 
             try
             {
+                fileLength = File.ReadAllBytes(file).Count();
+            }
+            catch
+            {
+            }
+            
+            try
+            {
                 var getS3Object = await s3Client.GetObjectAsync(s3Bucket, key);
-                TimeSpan ts = file.LastWriteTimeUtc - getS3Object.LastModified;
                 
-                //if (Math.Abs(ts.TotalMinutes) > lastModifiedMinutes)
-                if (file.Length != getS3Object.ContentLength)
+                if (fileLength != getS3Object.ContentLength)
                 {
                     try
                     {
@@ -71,8 +76,7 @@ try
                         {
                             BucketName = s3Bucket,
                             Key = key,
-                            FilePath = file.ToString(),
-                            ContentType = "text/plain"
+                            FilePath = file.ToString()
                         });
                     }
                     catch (Exception ex)
@@ -92,7 +96,6 @@ try
                         BucketName = s3Bucket,
                         Key = key,
                         FilePath = file.ToString(),
-                        ContentType = "text/plain"
                     });
                 }
                 catch (Exception ex)
