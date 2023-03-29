@@ -16,7 +16,7 @@ Log.Logger = new LoggerConfiguration()
 
 // read config value with localFolder > aws s3 bucket
 var folderMappings = config.GetValue<string>("FolderMappings");
-var rootDrive = "c:\\";
+var rootDrive = "d:\\";
 var lastModifiedMinutes = config.GetValue<double>("SyncFilesLastModifiedMinutes");
 
 try
