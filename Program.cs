@@ -16,7 +16,6 @@ Log.Logger = new LoggerConfiguration()
 
 // read config value with localFolder > aws s3 bucket
 var folderMappings = config.GetValue<string>("FolderMappings");
-var rootDrive = config.GetValue<string>("rootDrive");
 var lastModifiedMinutes = config.GetValue<double>("SyncFilesLastModifiedMinutes");
 var lastModifiedDate = DateTime.Now.AddMinutes(-lastModifiedMinutes);
 
@@ -29,9 +28,7 @@ try
     {       
         var folderArray = folderConfig.Split('@');
         var s3Bucket = folderArray[1];
-        var path = $"{rootDrive}:\\{folderArray[0]}";
-        Console.WriteLine(path);
-        var fileEntries = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+        var fileEntries = Directory.GetFiles(folderArray[0], "*", SearchOption.AllDirectories);
             
         // check bucket
         try
