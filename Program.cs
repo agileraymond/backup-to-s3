@@ -16,8 +16,9 @@ Log.Logger = new LoggerConfiguration()
 
 // read config value with localFolder > aws s3 bucket
 var folderMappings = config.GetValue<string>("FolderMappings");
-var rootDrive = "d:\\";
+var rootDrive = config.GetValue<string>("rootDrive");
 var lastModifiedMinutes = config.GetValue<double>("SyncFilesLastModifiedMinutes");
+var lastModifiedDate = DateTime.Now.AddMinutes(-lastModifiedMinutes);
 
 try
 {
@@ -28,7 +29,9 @@ try
     {       
         var folderArray = folderConfig.Split('@');
         var s3Bucket = folderArray[1];
-        var fileEntries = Directory.GetFiles(folderArray[0], "*", SearchOption.AllDirectories);
+        var path = $"{rootDrive}:\\{folderArray[0]}";
+        Console.WriteLine(path);
+        var fileEntries = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
             
         // check bucket
         try
@@ -54,56 +57,24 @@ try
         
         foreach (var file in fileEntries)
         {
-            var key = file.Replace(file.Substring(0, 3), "").Replace("\\", "/");
-            var fileLength = 0;
-
-            try
+            var fileInfo = new FileInfo(file);
+            if (fileInfo.LastWriteTime >= lastModifiedDate)
             {
-                fileLength = File.ReadAllBytes(file).Count();
-            }
-            catch
-            {
-            }
-            
-            try
-            {
-                var getS3Object = await s3Client.GetObjectAsync(s3Bucket, key);
-                
-                if (fileLength != getS3Object.ContentLength)
-                {
-                    try
-                    {
-                        var updateS3Object = await s3Client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
-                        {
-                            BucketName = s3Bucket,
-                            Key = key,
-                            FilePath = file.ToString()
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"{ex.Message} {ex.StackTrace}");
-                        continue;
-                    }                    
-                }
-            }
-            catch
-            {
+                var key = file.Replace(file.Substring(0, 3), "").Replace("\\", "/");
                 try
                 {
-                    // upload to s3
-                    var putS3Object = await s3Client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+                    var updateS3Object = await s3Client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
                     {
                         BucketName = s3Bucket,
                         Key = key,
-                        FilePath = file.ToString(),
+                        FilePath = file.ToString()
                     });
                 }
                 catch (Exception ex)
                 {
                     Log.Error($"{ex.Message} {ex.StackTrace}");
                     continue;
-                }               
+                }
             }
         }
     }
